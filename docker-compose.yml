@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # Base de Datos de Satélites
+  keppler-db:
+    image: postgres:15-alpine
+    container_name: keppler-db
+    restart: always
+    environment:
+      POSTGRES_USER: keppler_admin
+      POSTGRES_PASSWORD: keppler_password # Cambia esto en producción
+      POSTGRES_DB: keppler_repository
+    volumes:
+      - keppler_db_data:/var/lib/postgresql/data
+    networks:
+      - keppler-network
+
+  # Microservicio Ingestor (Python)
+  keppler-ingestor:
+    build:
+      context: ./keppler-ingestor
+      dockerfile: Dockerfile
+    container_name: keppler-ingestor
+    depends_on:
+      - keppler-db
+    environment:
+      - DATABASE_URL=postgresql://keppler_admin:keppler_password@keppler-db:5432/keppler_repository
+      - TLE_URL=https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle
+    restart: unless-stopped
+    networks:
+      - keppler-network
+
+  # Microservicio API (Node.js)
+  keppler-api:
+    build: ./keppler-api-rest
+    container_name: keppler-api
+    depends_on:
+      - keppler-db
+    environment:
+      - DATABASE_URL=postgresql://keppler_admin:keppler_password@keppler-db:5432/keppler_repository
+    ports:
+      - "9010:9010"
+    networks:
+      - keppler-network
+    restart: unless-stopped
+
+# Definición de volúmenes para persistencia de datos
+volumes:
+  keppler_db_data:
+
+# Red interna para comunicación entre microservicios
+networks:
+  keppler-network:
+    driver: bridge

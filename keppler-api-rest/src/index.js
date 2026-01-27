@@ -1,0 +1,40 @@
+const express = require('express');
+const { Pool } = require('pg');
+const app = express();
+const port = 9010;
+
+// Configuración de la base de datos
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+app.get('/satellites', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT sat_name, line1, line2, updated_at FROM tles ORDER BY updated_at DESC'
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Error al obtener datos de la DB' });
+  }
+});
+
+// Endpoint para un satélite específico por nombre
+app.get('/satellites/:name', async (req, res) => {
+  try {
+    const { name } = req.params;
+    const result = await pool.query(
+      'SELECT * FROM tles WHERE sat_name ILIKE $1 ORDER BY updated_at DESC LIMIT 1',
+      [`%${name}%`]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Satélite no encontrado' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: 'Error en el servidor' });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Keppler-API escuchando en http://localhost:${port}`);
+});
