@@ -5,7 +5,7 @@ import * as satellite from 'satellite.js';
 
 export interface SatelliteRaw{
   id: number;
-  name: string;
+  sat_name: string;
   line1: string;
   line2: string;
   date_added: string;
@@ -54,13 +54,13 @@ export class SatellitesService {
 
     // 3. Propagar la órbita (calcular posición y velocidad ECI)
     const positionAndVelocity = satellite.propagate(satrec, now);
-    if (positionAndVelocity == null) return { name: sat.name, lat: 0, lon: 0, alt: 0 }; // Retorno seguro
+    if (positionAndVelocity == null) return { name: sat.sat_name, lat: 0, lon: 0, alt: 0 }; // Retorno seguro
     
     const positionEci = positionAndVelocity.position;
 
     // Validación: A veces el cálculo falla si el TLE es muy viejo
     if (!positionEci || typeof positionEci === 'boolean') {
-        return { name: sat.name, lat: 0, lon: 0, alt: 0 }; // Retorno seguro
+        return { name: sat.sat_name, lat: 0, lon: 0, alt: 0 }; // Retorno seguro
     }
 
     // 4. Convertir coordenadas ECI (espaciales) a Geodésicas (terrestres)
@@ -74,7 +74,7 @@ export class SatellitesService {
     const height    = positionGd.height;
 
     return {
-      name: sat.name,
+      name: sat.sat_name,
       lat: latitude,
       lon: longitude,
       alt: height

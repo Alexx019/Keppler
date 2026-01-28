@@ -21,7 +21,7 @@ export class MapComponent implements OnInit {
 
   private initMap(): void {
     // 1. Inicializamos el mapa centrado en coordenadas [0, 0] y zoom alejado
-    this.map = L.map('map-container').setView([0, 0], 2);
+    this.map = L.map('map-container', {preferCanvas: true}).setView([0, 0], 2);
 
     // 2. Añadimos la capa visual (Tiles). Usamos OpenStreetMap por ser gratis/fácil.
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
