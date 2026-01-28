@@ -11,4 +11,4 @@ FROM nginx:alpine
 COPY --from=build /app/dist/keppler-frontend /usr/share/nginx/html
 # Copiar TU configuración personalizada
 COPY nginx.conf /etc/nginx/conf.d/default.conf 
-EXPOSE 80
+EXPOSE 9011
