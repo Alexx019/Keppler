@@ -39,21 +39,21 @@ services:
     environment:
       - DATABASE_URL=postgresql://keppler_admin:keppler_password@keppler-db:5432/keppler_repository
     ports:
-      - "4200:9011"
+      - "9010:9010"
     networks:
       - keppler-network
     restart: unless-stopped
 
   # Microservicio Frontend (Vite + React)
-  kepplet-frontend:
+  keppler-frontend:
     build: ./keppler-frontend
     container_name: keppler-frontend
     ports:
-      -"9011:9011"
+      -"4200:9011"
     depends_on:
       - keppler-api
     environment:
-      - API_URL=
+      - API_URL=value
     networks:
       - keppler-network
     restart: unless-stopped
