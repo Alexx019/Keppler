@@ -1,0 +1,4 @@
+#map-container {
+  height: 100vh; /* Ocupa toda la altura de la ventana */
+  width: 100%;
+}
