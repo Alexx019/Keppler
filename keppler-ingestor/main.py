@@ -18,7 +18,7 @@ def init_db():
     cur.execute("""
         CREATE TABLE IF NOT EXISTS tles (
             id SERIAL PRIMARY KEY,
-            sat_name TEXT NOT NULL,
+            sat_name TEXT NOT NULL UNIQUE,
             line1 CHAR(69) NOT NULL,
             line2 CHAR(69) NOT NULL,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -46,8 +46,14 @@ def fetch_and_save_tles():
 
         conn = get_db_connection()
         cur = conn.cursor()
-        # Insertar datos (puedes mejorar esto con un ON CONFLICT si añades claves únicas)
-        execute_values(cur, "INSERT INTO tles (sat_name, line1, line2) VALUES %s", data)
+        # Insertar o remplazar datos
+        execute_values(cur, """ INSERT INTO tles (sat_name, line1, line2) 
+                                VALUES %s 
+                                ON CONFLICT (sat_name) 
+                                DO UPDATE SET 
+                                    line1 = EXCLUDED.line1, 
+                                    line2 = EXCLUDED.line2;
+                       """, data)
         conn.commit()
         print(f"Éxito: {len(data)} satélites procesados.")
     except Exception as e:
