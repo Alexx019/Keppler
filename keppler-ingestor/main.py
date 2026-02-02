@@ -35,31 +35,46 @@ def fetch_and_save_tles():
         response.raise_for_status()
         lines = response.text.strip().split('\n')
         
-        # El formato TLE son 3 líneas: Nombre, Línea 1, Línea 2
-        data = []
+        # CAMBIO AQUÍ: Usamos un diccionario para filtrar duplicados automáticamente
+        unique_satellites = {} 
+
         for i in range(0, len(lines), 3):
             if i+2 < len(lines):
                 name = lines[i].strip()
                 l1 = lines[i+1].strip()
                 l2 = lines[i+2].strip()
-                data.append((name, l1, l2))
+                
+                # Al usar el nombre como clave, si sale repetido, 
+                # simplemente sobrescribe el anterior con el nuevo.
+                # Así garantizamos que solo hay 1 versión de cada satélite.
+                unique_satellites[name] = (name, l1, l2)
+
+        # Convertimos los valores del diccionario a una lista para SQL
+        data = list(unique_satellites.values())
+
+        if not data:
+            print("No se encontraron datos válidos.")
+            return
 
         conn = get_db_connection()
         cur = conn.cursor()
-        # Insertar o remplazar datos
+        
+        # Ahora 'data' está 100% libre de duplicados internos
         execute_values(cur, """ INSERT INTO tles (sat_name, line1, line2) 
                                 VALUES %s 
                                 ON CONFLICT (sat_name) 
                                 DO UPDATE SET 
                                     line1 = EXCLUDED.line1, 
-                                    line2 = EXCLUDED.line2;
+                                    line2 = EXCLUDED.line2,
+                                    updated_at = CURRENT_TIMESTAMP;
                        """, data)
         conn.commit()
-        print(f"Éxito: {len(data)} satélites procesados.")
+        print(f"Éxito: {len(data)} satélites procesados (Duplicados filtrados).")
+        
     except Exception as e:
         print(f"Error durante la ingesta: {e}")
     finally:
-        if conn:
+        if 'conn' in locals() and conn:
             cur.close()
             conn.close()
 
