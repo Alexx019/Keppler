@@ -1,6 +1,6 @@
 # Keppler
 
-Rastreador de satétiles a base de TLEs. Funciona con microservicios, un ingestor, una api rest y una base de datos postgreSQL. Todo mostrado en una web hecha con React + Vite para enseñar en 3d la posiion de cada uno de los satélites con respecto al globo terrestre usando la librería Cesium JS, además para la visualización en 2D usamos leaflet
+Rastreador de satétiles a base de TLEs. Funciona con microservicios, un ingestor, una api rest y una base de datos postgreSQL. Todo mostrado en una web hecha con Angular para enseñar en un mapa la posición de cada uno de los satélites.
 
 ### Puertos
 
