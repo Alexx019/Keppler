@@ -3,7 +3,13 @@ const { Pool } = require('pg');
 const cors = require('cors');
 const app = express();
 const port = 9010;
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:4200',
+    'https://keppler.ariassouto.es',
+    'http://keppler.ariassouto.es'
+  ]
+}));
 
 // Configuración de la base de datos
 const pool = new Pool({

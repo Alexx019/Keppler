@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { map, catchError } from 'rxjs/operators';
 import * as satellite from 'satellite.js';
+import { environment } from '../../environments/environment';
 
 // Interfaz para los datos crudos que vienen de TU backend (con sat_name)
 export interface SatelliteRaw {
@@ -40,7 +41,7 @@ export interface SatelliteIntel {
 
 @Injectable({ providedIn: 'root' })
 export class SatellitesService {
-  private apiUrl = 'http://localhost:9010/satellites';
+  private apiUrl = `${environment.apiUrl}/satellites`;
 
   constructor(private http: HttpClient) { }
 
