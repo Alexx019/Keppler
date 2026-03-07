@@ -12,9 +12,14 @@ const pool = new Pool({
 
 app.get('/satellites', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT sat_name, line1, line2, updated_at FROM tles ORDER BY updated_at DESC'
-    );
+    const result = await pool.query(`
+      SELECT t.sat_name, t.category, t.norad_cat_id, t.launch_year, t.intl_designator, 
+             t.priority, t.owner, t.launch_site, t.ops_status, t.line1, t.line2, t.updated_at,
+             i.intel_description, i.intel_image_url
+      FROM tles t
+      LEFT JOIN satellite_intel i ON t.sat_name = i.sat_name
+      ORDER BY t.updated_at DESC
+    `);
     res.json(result.rows);
   } catch (err) {
     console.error(err);
@@ -27,7 +32,11 @@ app.get('/satellites/:name', async (req, res) => {
   try {
     const { name } = req.params;
     const result = await pool.query(
-      'SELECT * FROM tles WHERE sat_name ILIKE $1 ORDER BY updated_at DESC LIMIT 1',
+      `SELECT t.*, i.intel_description, i.intel_image_url 
+       FROM tles t 
+       LEFT JOIN satellite_intel i ON t.sat_name = i.sat_name 
+       WHERE t.sat_name ILIKE $1 
+       ORDER BY t.updated_at DESC LIMIT 1`,
       [`%${name}%`]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Satélite no encontrado' });

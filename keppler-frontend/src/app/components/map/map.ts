@@ -1,112 +1,561 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import * as L from 'leaflet';
 import { SatellitesService, SatelliteRaw } from '../../services/satellites';
 
 @Component({
   selector: 'app-map',
   standalone: true,
-  imports: [], 
+  imports: [CommonModule],
   templateUrl: './map.html',
   styleUrl: './map.css'
 })
 export class MapComponent implements OnInit, OnDestroy {
   private map!: L.Map;
-  
+
   // Guardamos los datos crudos para recalcular
   private satellitesData: SatelliteRaw[] = [];
-  
-  // DICCIONARIO: Clave = Nombre Satélite, Valor = Marcador en el mapa
-  // Esto nos permite buscar y mover un marcador instantáneamente sin recrearlo.
-  private markers: Map<string, L.CircleMarker> = new Map();
-  
-  // Referencia al intervalo para poder pararlo si sales de la página
-  private intervalId: any;
 
-  constructor(private satelliteService: SatellitesService) {}
+  // DICCIONARIO: Clave = Nombre Satélite, Valor = Marcador en el mapa
+  private markers: Map<string, L.CircleMarker> = new Map();
+
+  // Referencia al bucle de animación
+  private animationFrameId: number | null = null;
+
+  // Estado UI Filtros
+  categories: string[] = [];
+  selectedCategories: Set<string> = new Set();
+
+  // Estado UI Tracking
+  trackedSatellite: SatelliteRaw | null = null;
+  trackedIntel: any = null;
+  trackedPosition: any = null;
+
+  // Controles Interactivos
+  isTrackingLocked: boolean = false;
+  showOrbit: boolean = true;
+  showFootprint: boolean = true;
+  showInfoPanel: boolean = false;
+
+  // Elementos Leaflet Dinámicos para el Tracking
+  private orbitLine: L.Polyline | null = null;
+  private footprintCircle: L.Circle | null = null;
+  private trackingSquare: L.Marker | null = null;
+  private permanentTooltip: L.Marker | null = null;
+
+  // UI variables for Side panel
+  tleCopied: boolean = false;
+
+  constructor(private satelliteService: SatellitesService) { }
 
   ngOnInit(): void {
     this.initMap();
     this.startSimulation();
+
+    // Escuchar eventos de movimiento de usuario para soltar la cámara (Untethering)
+    this.map.on('dragstart', () => {
+      // dragstart solo se dispara por arrastre manual del usuario, no por panTo()
+      if (this.isTrackingLocked) {
+        this.isTrackingLocked = false;
+        this.updateMapLayout();
+      }
+    });
+
+    // Al hacer un clic en el mapa (no arrastrar), se esconde el panel de info pero sigue el trackeo
+    this.map.on('click', (e: any) => {
+      // Leaflet dispara 'click' en el mapa incluso al pinchar algunos controles, pero no al pinchar
+      // en un L.circleMarker si este detiene la propagación (Leaflet suele hacerlo nativamente, pero aseguramos).
+      // Si llegamos a nivel mapa asumiendo que el usuario pinchó "vacio":
+      if (this.showInfoPanel) {
+        this.showInfoPanel = false;
+        this.updateMapLayout();
+      }
+    });
   }
 
-  // Importante: Limpiar el bucle si el usuario cambia de página
   ngOnDestroy(): void {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+    if (this.animationFrameId) {
+      cancelAnimationFrame(this.animationFrameId);
     }
   }
 
   private initMap(): void {
-    this.map = L.map('map-container', { preferCanvas: true }).setView([0, 0], 2);
+    // Zoom control abajoderecha para que no pise el HUD
+    const maxBounds: L.LatLngBoundsExpression = [
+      [-90, -180],
+      [90, 180]
+    ];
+    this.map = L.map('map-container', {
+      preferCanvas: true,
+      zoomControl: false,
+      minZoom: 3,                 // Evita ver demasiados mapas repetidos
+      maxZoom: 10,
+      maxBounds: maxBounds,
+      worldCopyJump: true         // Soluciona el antimeridiano
+    }).setView([20, 0], 3);
+
+    L.control.zoom({ position: 'bottomright' }).addTo(this.map);
+
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors'
+      attribution: '© OpenStreetMap contributors',
+      noWrap: false // Permite repetir horizontalmente y worldCopyJump hace la magia
     }).addTo(this.map);
   }
 
   private startSimulation(): void {
-    // 1. Carga inicial de datos (SOLO SE HACE UNA VEZ)
-    this.satelliteService.getRawSatellites().subscribe(data => {
+    this.satelliteService.getRawSatellites().subscribe((data: SatelliteRaw[]) => {
       this.satellitesData = data;
       console.log(`Cargados ${data.length} satélites. Iniciando animación...`);
-      
-      // 2. Crear los marcadores iniciales
+
+      // Extraemos categorías únicas
+      const uniqueCats = new Set<string>();
+      data.forEach((s: SatelliteRaw) => {
+        if (s.category) uniqueCats.add(s.category);
+      });
+      if (uniqueCats.size === 0) uniqueCats.add('Desconocida');
+
+      this.categories = Array.from(uniqueCats).sort();
+      // Por defecto activas SOLO Military, Earth Resources y Navigation
+      const defaultCats = ['Military', 'Earth Resources', 'Navigation'];
+
+      this.categories.forEach(c => {
+        if (defaultCats.includes(c)) {
+          this.selectedCategories.add(c);
+        }
+      });
+
+      // Creamos los marcadores iniciales
       this.createMarkers();
 
-      // 3. Iniciar el "bucle" de actualización (cada 1000ms = 1 segundo)
-      this.intervalId = setInterval(() => {
+      // Bucle de renderizado continuo (60fps)
+      const animate = () => {
         this.updatePositions();
-      }, 1000); 
+        this.animationFrameId = requestAnimationFrame(animate);
+      };
+
+      // Iniciamos el bucle
+      animate();
     });
   }
 
   private createMarkers(): void {
     const now = new Date();
-    
+
     this.satellitesData.forEach(sat => {
       const pos = this.satelliteService.calculatePosition(sat, now);
       if (pos) {
-        // Color según altura
-        const color = pos.alt > 1000 ? '#3388ff' : '#ff0000';
+        // Color Palantir
+        const cat = sat.category || 'Desconocida';
+        let color = '#00ffcc'; // Default cyan
+        if (cat === 'Starlink') color = '#ff00ff';
+        else if (cat === 'Stations') color = '#ff3333';
+        else if (cat === 'Weather') color = '#33ccff';
+        else if (cat === 'Navigation' || cat === 'GLONASS') color = '#ffff00';
+        else if (cat === 'Military' || cat === 'TJSAT') color = '#ff0000';
+        else if (cat === 'Science') color = '#00ff00';
+        else if (cat === 'Analyst') color = '#ff00aa'; // Magenta brillante para los oscuros
+        else if (cat === 'Radar') color = '#ff8800';  // Naranja radar
 
-        // Creamos el marcador
+        // Estilo Palantir Ficha Táctica
+        const norad = sat.norad_cat_id || 'N/A';
+        const year = sat.launch_year || 'N/A';
+        const desig = sat.intl_designator || 'N/A';
+        const prio = sat.priority || 'Standard';
+
+        let prioColor = '#00ffcc';
+        if (prio.includes('High')) prioColor = '#ff3333';
+        else if (prio.includes('Experimental')) prioColor = '#ffff00';
+
+        const popupHTML = `
+          <div style="font-family: 'Courier New', monospace; color: #00ffcc; background: #0a0f19; padding: 10px; border: 1px solid #00ffcc; box-shadow: 0 0 10px rgba(0,255,204,0.3); min-width: 200px;">
+            <h4 style="margin: 0 0 10px 0; border-bottom: 1px solid #00ffcc; padding-bottom: 5px; text-transform: uppercase;">${sat.sat_name}</h4>
+            <div style="font-size: 0.9em; margin-bottom: 3px;"><b>CAT:</b> ${cat}</div>
+            <div style="font-size: 0.9em; margin-bottom: 3px;"><b>NORAD ID:</b> ${norad}</div>
+            <div style="font-size: 0.9em; margin-bottom: 3px;"><b>YEAR:</b> ${year}</div>
+            <div style="font-size: 0.9em; margin-bottom: 3px;"><b>DESIG:</b> ${desig}</div>
+            <div style="font-size: 0.9em; margin-bottom: 8px; color: ${prioColor};"><b>PRIORITY:</b> ${prio}</div>
+            <div id="alt-${norad}" style="font-size: 0.8em; color: #aaa;">ALT: Cargando...</div>
+          </div>
+        `;
+
         const marker = L.circleMarker([pos.lat, pos.lng], {
           radius: 3,
           fillColor: color,
           color: "transparent",
           fillOpacity: 0.8
-        }).bindPopup(`<b>${sat.sat_name}</b>`);
+        }).bindTooltip(popupHTML, { className: 'tactical-popup', direction: 'top', opacity: 1 });
 
-        // Lo añadimos al mapa
-        marker.addTo(this.map);
 
-        // LO GUARDAMOS EN EL DICCIONARIO para usarlo luego
+
+        // Evento Click: Iniciar Tracking Militar y abrir Panel Derecho
+        marker.on('click', (e: L.LeafletMouseEvent) => {
+          L.DomEvent.stopPropagation(e as any); // Evitar que el click se propague al mapa y cierre el panel
+          this.trackSatellite(sat);
+        });
+
+        // Solo lo añadimos si la categoría está seleccionada 
+        if (this.selectedCategories.has(cat)) {
+          marker.addTo(this.map);
+        }
+
         this.markers.set(sat.sat_name, marker);
       }
     });
   }
 
   private updatePositions(): void {
-    const now = new Date(); // La hora actual exacta para este frame
+    const now = new Date();
 
-    // Recorremos nuestros datos guardados
     this.satellitesData.forEach(sat => {
-      // 1. Calculamos nueva posición matemática
+      const cat = sat.category || 'Desconocida';
+      // Optimización: Si no está activa, ni calculamos ni movemos
+      if (!this.selectedCategories.has(cat)) return;
+
       const newPos = this.satelliteService.calculatePosition(sat, now);
-      
+
       if (newPos) {
-        // 2. Buscamos el marcador existente en nuestro diccionario
         const marker = this.markers.get(sat.sat_name);
 
         if (marker) {
-          // 3. MOVER: Solo actualizamos coordenadas (muy rápido)
           marker.setLatLng([newPos.lat, newPos.lng]);
-          
-          // Opcional: Actualizar el popup si está abierto
-          if (marker.isPopupOpen()) {
-             marker.setPopupContent(`<b>${sat.sat_name}</b><br>Alt: ${newPos.alt.toFixed(2)} km`);
+
+          if (marker.isTooltipOpen()) {
+            const altElement = document.getElementById(`alt-${sat.norad_cat_id || 'N/A'}`);
+            if (altElement) {
+              altElement.innerText = `ALT: ${newPos.alt.toFixed(2)} km`;
+            }
+          }
+        }
+
+        // Si este es el satélite que estamos rastreando (Lock-On target)
+        if (this.trackedSatellite && this.trackedSatellite.sat_name === sat.sat_name) {
+          this.trackedPosition = newPos;
+
+          // El auto-pan de la cámara a 60 FPS causaba la ilusión de que la trayectoria se movía
+          // y generaba vibración subpixelada (jitter). Ahora la cámara se queda fija, 
+          // permitiendo ver cómo el satélite avanza sobre la línea estática.
+
+          // Actualizar cuadrado de tracking
+          if (this.trackingSquare) {
+            (this.trackingSquare as L.Marker).setLatLng([newPos.lat, newPos.lng]);
+          }
+          if (this.permanentTooltip) {
+            this.permanentTooltip.setLatLng([newPos.lat, newPos.lng]);
+          }
+
+          // 2. Mover la silueta/footprint del radar (círculo)
+          if (this.footprintCircle) {
+            this.footprintCircle.setLatLng([newPos.lat, newPos.lng]);
           }
         }
       }
     });
+  }
+
+  // --- Helper Cálculo Bounds Cuadrado ---
+  private getSquareBounds(lat: number, lng: number, sizeDeg: number): L.LatLngBounds {
+    const half = sizeDeg / 2;
+    return L.latLngBounds([
+      [lat - half, lng - half],
+      [lat + half, lng + half]
+    ]);
+  }
+
+  // --- UI Lógica Tracking ---
+  trackSatellite(sat: SatelliteRaw): void {
+    this.trackedSatellite = sat;
+    this.showInfoPanel = true;    // Mostrar la información a la derecha
+
+    // Centramos la cámara al seleccionarlo de golpe y luego lo liberamos para que navegue visualmente
+    this.isTrackingLocked = true;
+    setTimeout(() => this.isTrackingLocked = false, 1000);
+
+    // Obtenemos inteligencia asíncrona de Wikipedia / Fallback
+    this.satelliteService.getSatelliteIntel(sat).subscribe((intel) => {
+      this.trackedIntel = intel;
+    });
+
+    // Limpiar gráficos antiguos
+    if (this.orbitLine) { this.map.removeLayer(this.orbitLine); }
+    if (this.footprintCircle) { this.map.removeLayer(this.footprintCircle); }
+    if (this.trackingSquare) { this.map.removeLayer(this.trackingSquare); }
+    if (this.permanentTooltip) { this.map.removeLayer(this.permanentTooltip); }
+
+    // Ocultar el resto de satélites
+    this.markers.forEach((m, name) => {
+      if (name !== sat.sat_name) {
+        if (this.map.hasLayer(m)) this.map.removeLayer(m);
+      }
+    });
+
+    const now = new Date();
+    const pos = this.satelliteService.calculatePosition(sat, now);
+    if (!pos) return;
+
+    // Zoom instantáneo fuerte al objetivo y notificar apertura de UI al mapa
+    this.updateMapLayout();
+    this.map.setView([pos.lat, pos.lng], 5, { animate: true });
+
+    // Cuadrado de tracking fijo de 40x40 píxeles
+    this.trackingSquare = L.marker([pos.lat, pos.lng], {
+      icon: L.divIcon({
+        className: 'target-crosshair',
+        html: '<div style="width:100%;height:100%;border:3px solid #ff3333;box-sizing:border-box;box-shadow:inset 0 0 10px rgba(255, 51, 51, 0.6), 0 0 10px rgba(255, 51, 51, 0.6);"></div>',
+        iconSize: [30, 30],
+        iconAnchor: [15, 15]
+      }),
+      interactive: false
+    }).addTo(this.map);
+
+    // Etiqueta permanente (usamos un marcador invisible con tooltip permanente)
+    this.permanentTooltip = L.marker([pos.lat, pos.lng], { opacity: 0 }).bindTooltip(
+      `<div style="color: #ff3333; font-weight: bold; font-family: 'Courier New';">${sat.sat_name}</div>`,
+      { permanent: true, direction: 'right', className: 'tactical-tooltip', offset: [5, 0] }
+    ).addTo(this.map);
+
+    // Dibujar la Huella de Área de Cobertura (Formula geométrica del horizonte terrestre)
+    const R = 6371; // Radio de la Tierra en km
+    const posAlt = Math.max(pos.alt, 100); // Mínimo 100km si hay error pa q no pete
+    const radiusMeters = Math.acos(R / (R + posAlt)) * R * 1000;
+
+    this.footprintCircle = L.circle([pos.lat, pos.lng], {
+      radius: radiusMeters,
+      color: '#ff3333',
+      weight: 1,
+      fillColor: '#ff3333',
+      fillOpacity: 0.1,
+      dashArray: '5, 10'
+    }).addTo(this.map);
+
+    // Dibujar Trayectoria/Órbita predictiva
+    const pathPoints = this.satelliteService.calculateOrbit(sat, now, 90, 1); // +-90 mins, pasos de 1 min
+
+    // Partir la línea cuando el satélite cruza el anti-meridiano (Lng > 180 o < -180) para que no haya una recta
+    const latLngsArrays: L.LatLng[][] = [];
+    let currentSegment: L.LatLng[] = [];
+
+    for (let i = 0; i < pathPoints.length; i++) {
+      const p = pathPoints[i];
+      if (i > 0) {
+        const prevP = pathPoints[i - 1];
+        if (Math.abs(p.lng - prevP.lng) > 180) {
+          latLngsArrays.push(currentSegment);
+          currentSegment = [];
+        }
+      }
+      currentSegment.push(new L.LatLng(p.lat, p.lng));
+    }
+    if (currentSegment.length > 0) latLngsArrays.push(currentSegment);
+
+    this.orbitLine = L.polyline(latLngsArrays as any, {
+      color: '#00ffcc',
+      weight: 2,
+      opacity: 0.6,
+      dashArray: '10, 10',
+      smoothFactor: 1
+    }).addTo(this.map);
+
+    this.renderDynamics(sat, pos);
+  }
+
+  // Función separada para renderizar huella y órbita reactivamente a los booleanos
+  renderDynamics(sat?: SatelliteRaw, pos?: any): void {
+    if (!sat) sat = this.trackedSatellite!;
+    if (!pos) pos = this.trackedPosition;
+    if (!sat || !pos) return;
+
+    const now = new Date();
+
+    // Footerprint
+    if (this.footprintCircle) this.map.removeLayer(this.footprintCircle);
+    if (this.showFootprint) {
+      const R = 6371;
+      const posAlt = Math.max(pos.alt, 100);
+      const radiusMeters = Math.acos(R / (R + posAlt)) * R * 1000;
+
+      this.footprintCircle = L.circle([pos.lat, pos.lng], {
+        radius: radiusMeters,
+        color: '#ff3333',
+        fillColor: '#ff3333',
+        fillOpacity: 0.1,
+        weight: 1,
+        dashArray: '5, 10'
+      }).addTo(this.map);
+    }
+
+    // Órbita
+    if (this.orbitLine) this.map.removeLayer(this.orbitLine);
+    if (this.showOrbit) {
+      const pathPoints = this.satelliteService.calculateOrbit(sat, now, 90, 1);
+      const latLngsArrays: L.LatLng[][] = [];
+      let currentSegment: L.LatLng[] = [];
+
+      for (let i = 0; i < pathPoints.length; i++) {
+        const p = pathPoints[i];
+        if (i > 0 && Math.abs(p.lng - pathPoints[i - 1].lng) > 180) {
+          latLngsArrays.push(currentSegment);
+          currentSegment = [];
+        }
+        currentSegment.push(new L.LatLng(p.lat, p.lng));
+      }
+      if (currentSegment.length > 0) latLngsArrays.push(currentSegment);
+
+      this.orbitLine = L.polyline(latLngsArrays as any, {
+        color: '#00ffcc',
+        weight: 2,
+        opacity: 0.6,
+        dashArray: '10, 10',
+        smoothFactor: 1
+      }).addTo(this.map);
+    }
+  }
+
+  // Alternadores de la UI Panel
+  toggleLock(): void {
+    // El botón 'Lock' ahora sirve para centrar la cámara instantáneamente en el objetivo principal
+    if (this.trackedPosition) {
+      this.isTrackingLocked = true;
+      this.updateMapLayout();
+      this.map.panTo([this.trackedPosition.lat, this.trackedPosition.lng], { animate: true });
+      
+      // Una vez centrado al instante suavemente, liberamos para que navegue
+      setTimeout(() => this.isTrackingLocked = false, 1000);
+    }
+  }
+
+  toggleOrbit(): void {
+    this.showOrbit = !this.showOrbit;
+    this.renderDynamics();
+  }
+
+  toggleFootprint(): void {
+    this.showFootprint = !this.showFootprint;
+    this.renderDynamics();
+  }
+
+  untrackSatellite(): void {
+    this.trackedSatellite = null;
+    this.trackedIntel = null;
+    this.trackedPosition = null;
+    this.isTrackingLocked = false;
+    this.showInfoPanel = false;
+
+    if (this.orbitLine) { this.map.removeLayer(this.orbitLine); }
+    if (this.footprintCircle) { this.map.removeLayer(this.footprintCircle); }
+    if (this.trackingSquare) { this.map.removeLayer(this.trackingSquare); }
+    if (this.permanentTooltip) { this.map.removeLayer(this.permanentTooltip); }
+
+    // Restaurar todos los satélites visibles según el filtro
+    this.satellitesData.forEach(s => {
+      const cat = s.category || 'Desconocida';
+      if (this.selectedCategories.has(cat)) {
+        const m = this.markers.get(s.sat_name);
+        if (m && !this.map.hasLayer(m)) m.addTo(this.map);
+      }
+    });
+
+    this.updateMapLayout();
+  }
+
+  // --- Helper para sincronizar el redimensionado de Angular con Leaflet ---
+  private updateMapLayout(): void {
+    // 1. Comportamiento Rueda de Ratón
+    // Al no estar ya forzando el seguimiento con auto-pan continuo,
+    // revertimos a que la rueda del ratón siempre haga zoom al puntero, como de costumbre.
+    this.map.options.scrollWheelZoom = true;
+
+    // 2. Comportamiento Recálculo de Centro Cinemático
+    // Dado que Angular abre/cierra el panel derecho con *ngIf, el ancho del div del mapa
+    // en CSS-Flexbox crece y encoge. Hay que avisar a Leaflet para que recalcule
+    // instantáneamente dónde está ahora el "centro exacto" del hueco visible sin dar tirones.
+    setTimeout(() => {
+      // El truco definitivo: pan:false le dice a Leaflet que no intente
+      // "corregir" el centro geográfico cuando cambie el tamaño del div.
+      // Esto hace que el mapa simplemente parezca que se destapa/tapa por la derecha sin saltar.
+      this.map.invalidateSize({ pan: false });
+      
+      if (this.isTrackingLocked && this.trackedPosition) {
+        // Al recalcular, el centro de la pantalla es más pequeño. 
+        // Centramos suavemente al satélite en el nuevo hueco táctico.
+        this.map.panTo([this.trackedPosition.lat, this.trackedPosition.lng], { animate: true });
+      }
+    }, 50); // Mínimo retardo DOM de seguridad
+  }
+
+  closeInfoPanel(): void {
+    this.showInfoPanel = false;
+    this.updateMapLayout();
+    
+    // Centramos la cámara al cerrar el panel táctico SOLO si el satélite está visible
+    if (this.trackedPosition) {
+      const pos = L.latLng(this.trackedPosition.lat, this.trackedPosition.lng);
+      if (this.map.getBounds().contains(pos)) {
+        this.isTrackingLocked = true;
+        this.map.panTo(pos, { animate: true });
+        setTimeout(() => this.isTrackingLocked = false, 1000);
+      }
+    }
+  }
+
+  openInfoPanel(): void {
+    this.showInfoPanel = true;
+    this.updateMapLayout();
+    
+    // Centramos la cámara al re-abrir el panel táctico SOLO si el satélite está visible
+    if (this.trackedPosition) {
+      const pos = L.latLng(this.trackedPosition.lat, this.trackedPosition.lng);
+      if (this.map.getBounds().contains(pos)) {
+        this.isTrackingLocked = true;
+        this.map.panTo(pos, { animate: true });
+        setTimeout(() => this.isTrackingLocked = false, 1000);
+      }
+    }
+  }
+
+  copyTLE(): void {
+    if (this.trackedSatellite) {
+      const tle = `${this.trackedSatellite.sat_name}\n${this.trackedSatellite.line1}\n${this.trackedSatellite.line2}`;
+      navigator.clipboard.writeText(tle).then(() => {
+        this.tleCopied = true;
+        setTimeout(() => this.tleCopied = false, 2000); // Reset after 2 secs
+      });
+    }
+  }
+
+  // --- UI Lógica Filtros ---
+
+  toggleCategory(category: string): void {
+    if (this.selectedCategories.has(category)) {
+      this.selectedCategories.delete(category);
+      // Quitar del mapa instantáneamente
+      this.satellitesData
+        .filter((s: SatelliteRaw) => (s.category || 'Desconocida') === category)
+        .forEach((s: SatelliteRaw) => {
+          const marker = this.markers.get(s.sat_name);
+          if (marker) {
+            this.map.removeLayer(marker);
+          }
+        });
+    } else {
+      this.selectedCategories.add(category);
+      // Añadir al mapa calculando posición exacta actual
+      const now = new Date();
+      this.satellitesData
+        .filter((s: SatelliteRaw) => (s.category || 'Desconocida') === category)
+        .forEach((s: SatelliteRaw) => {
+          const marker = this.markers.get(s.sat_name);
+          const pos = this.satelliteService.calculatePosition(s, now);
+          if (marker && pos) {
+            marker.setLatLng([pos.lat, pos.lng]);
+            if (!this.trackedSatellite || this.trackedSatellite.sat_name === s.sat_name) {
+              marker.addTo(this.map);
+            }
+          }
+        });
+    }
+  }
+
+  isCategorySelected(category: string): boolean {
+    return this.selectedCategories.has(category);
   }
 }

@@ -1,1 +1,112 @@
-<div id="map-container"></div>
+<div class="map-layout">
+  <!-- HUD Izquierdo (Filtros) -->
+  <div class="hud-panel left-panel">
+    <h2>KEPPLER EYE</h2>
+    <div class="subtitle">Global Tracking</div>
+
+    <div class="categories-list">
+      <div class="filter-item" *ngFor="let cat of categories" [class.active]="isCategorySelected(cat)"
+        (click)="toggleCategory(cat)">
+        <span class="status-indicator"></span>
+        {{ cat }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Contenedor Mapa Central -->
+  <div id="map-container"></div>
+
+  <!-- Controles Inferiores Flotantes Independientes -->
+  <div class="bottom-controls" *ngIf="trackedSatellite">
+    <div class="control-row">
+      <button class="control-btn" [class.active]="isTrackingLocked" (click)="toggleLock()" title="Camera Lock">
+        ⌖
+      </button>
+      <button class="control-btn" [class.active]="showOrbit" (click)="toggleOrbit()" title="Orbit Path">
+        ∽
+      </button>
+      <button class="control-btn" [class.active]="showFootprint" (click)="toggleFootprint()" title="Radar Footprint">
+        ◎
+      </button>
+      <button class="control-btn btn-danger" (click)="untrackSatellite()" title="Cancel Tracking">
+        ✕
+      </button>
+    </div>
+  </div>
+
+  <!-- Pestaña Re-Apertura -->
+  <div class="mini-tab" *ngIf="!showInfoPanel && trackedSatellite" (click)="openInfoPanel()">
+    <span>&#9664; INTEL</span>
+  </div>
+
+  <!-- Pestaña Re-Apertura (Cerrar) -->
+  <div class="mini-tab close-tab" *ngIf="showInfoPanel && trackedSatellite" (click)="closeInfoPanel()">
+    <span>&#9654; CLOSE</span>
+  </div>
+
+  <!-- HUD Derecho (Información Táctica del Objetivo) -->
+  <div class="hud-panel right-panel" *ngIf="showInfoPanel && trackedSatellite">
+    <div class="target-title-area">
+      <div class="target-ident">
+        <div class="target-name">{{ trackedSatellite.sat_name }}</div>
+        <div class="target-cat">CLASS: <span>{{ trackedSatellite.category || 'UNKNOWN' }}</span></div>
+      </div>
+      <img *ngIf="trackedIntel" [title]="trackedIntel.country" [src]="trackedIntel.flagUrl" class="target-flag-large" alt="Flag">
+    </div>
+
+    <div class="target-badges">
+      <div class="badge badge-status" [class.operational]="trackedSatellite.ops_status === '+'" [class.decayed]="trackedSatellite.ops_status === '-'">
+        {{ trackedSatellite.ops_status === '+' ? 'OPERATIONAL' : (trackedSatellite.ops_status === '-' ? 'DECAYED' : 'PARTIAL/UNKNOWN') }}
+      </div>
+      <div class="badge badge-priority" *ngIf="trackedSatellite.priority && !trackedSatellite.priority.includes('Standard')" [class.high]="trackedSatellite.priority.includes('High')" [class.experimental]="trackedSatellite.priority.includes('Experimental')">
+        {{ trackedSatellite.priority | uppercase }} PRIORITY
+      </div>
+    </div>
+
+    <div class="target-intel" *ngIf="trackedIntel">
+      <div class="intel-image-container">
+        <img [src]="trackedIntel.imageUrl" class="intel-image" alt="Classified Imagery">
+        <div class="img-overlay">{{ trackedIntel.type | uppercase }}</div>
+      </div>
+
+      <div class="tech-grid">
+        <div class="tech-item">
+          <div class="tech-label">NORAD ID</div>
+          <div class="tech-value">{{ trackedSatellite.norad_cat_id || 'CLASSIFIED' }}</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-label">INT DESIG</div>
+          <div class="tech-value">{{ trackedSatellite.intl_designator || 'N/A' }}</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-label">LAUNCH</div>
+          <div class="tech-value">{{ trackedSatellite.launch_year || 'N/A' }}</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-label">SITE / OP</div>
+          <div class="tech-value dim" [title]="trackedSatellite.launch_site || 'CLASSIFIED'">
+            {{ trackedSatellite.launch_site || 'CLASSIFIED' }} {{ trackedSatellite.owner ? '(' + trackedSatellite.owner + ')' : '' }}
+          </div>
+        </div>
+      </div>
+      
+      <div class="detail-desc">{{ trackedIntel.description }}</div>
+      <div class="last-intel" *ngIf="trackedSatellite.updated_at"><b>LAST INTEL:</b> {{ trackedSatellite.updated_at | date:'short' }}</div>
+
+      <div class="telemetry-box">
+        <div class="telemetry-header">
+          <h4>RAW TLE</h4>
+          <button class="btn-copy" (click)="copyTLE()" [class.copied]="tleCopied" title="Copy to clipboard">
+            <span *ngIf="!tleCopied">📋 COPY</span>
+            <span *ngIf="tleCopied">✔️ COPIED</span>
+          </button>
+        </div>
+        <div class="raw-tle">
+          <div>{{ trackedSatellite.line1 }}</div>
+          <div>{{ trackedSatellite.line2 }}</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

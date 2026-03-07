@@ -1,6 +1,6 @@
 # Keppler
 
-Rastreador de satétiles a base de TLEs. Funciona con microservicios, un ingestor, una api rest y una base de datos postgreSQL. Todo mostrado en una web hecha con Angular para enseñar en un mapa la posición de cada uno de los satélites.
+Rastreador de satélites a base de TLEs. Funciona con microservicios, un ingestor, una api rest y una base de datos postgreSQL. Todo mostrado en una web hecha con Angular para enseñar en un mapa la posición de cada uno de los satélites.
 
 ### Puertos
 
