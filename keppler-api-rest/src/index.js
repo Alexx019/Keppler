@@ -6,6 +6,7 @@ const port = 9010;
 app.use(cors({
   origin: [
     'http://localhost:4200',
+    'http://localhost:9011',
     'https://keppler.ariassouto.es',
     'http://keppler.ariassouto.es'
   ]
