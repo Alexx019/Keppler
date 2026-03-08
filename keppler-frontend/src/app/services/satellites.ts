@@ -104,10 +104,6 @@ export class SatellitesService {
 
   // 4. Inteligencia Artificial / Wikipedia API con Fallback (Mock)
   getSatelliteIntel(sat: SatelliteRaw): Observable<SatelliteIntel> {
-    const name = sat.sat_name.toUpperCase();
-    const cleanName = sat.sat_name.split(' (')[0]; // Ejemplo: quitar " (ZARYA)" de "ISS (ZARYA)" para buscar mejor "ISS"
-    const cat = sat.category || '';
-
     // Diccionario Oficial de Códigos de País SATCAT
     const DB_OWNER = sat.owner || 'UNKNOWN';
     let realCountry = 'Unknown / Classified';
@@ -115,7 +111,7 @@ export class SatellitesService {
 
     if (DB_OWNER.includes('US')) { realCountry = 'United States'; realFlag = 'https://upload.wikimedia.org/wikipedia/en/a/a4/Flag_of_the_United_States.svg'; }
     else if (DB_OWNER.includes('CIS') || DB_OWNER.includes('USSR') || DB_OWNER.includes('RU')) { realCountry = 'Russian Federation'; realFlag = 'https://upload.wikimedia.org/wikipedia/en/f/f3/Flag_of_Russia.svg'; }
-    else if (DB_OWNER.includes('PRC')) { realCountry = 'China'; realFlag = 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg'; }
+    else if (DB_OWNER.includes('PRC') || DB_OWNER.includes('CHBZ')) { realCountry = 'China'; realFlag = 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Flag_of_the_People%27s_Republic_of_China.svg'; }
     else if (DB_OWNER.includes('UK')) { realCountry = 'United Kingdom'; realFlag = 'https://upload.wikimedia.org/wikipedia/en/a/ae/Flag_of_the_United_Kingdom.svg'; }
     else if (DB_OWNER.includes('FR')) { realCountry = 'France'; realFlag = 'https://upload.wikimedia.org/wikipedia/en/c/c3/Flag_of_France.svg'; }
     else if (DB_OWNER.includes('JPN')) { realCountry = 'Japan'; realFlag = 'https://upload.wikimedia.org/wikipedia/en/9/9e/Flag_of_Japan.svg'; }
@@ -130,7 +126,6 @@ export class SatellitesService {
     else if (DB_OWNER.includes('IT')) { realCountry = 'Italy'; realFlag = 'https://upload.wikimedia.org/wikipedia/en/0/03/Flag_of_Italy.svg'; }
     else if (DB_OWNER.includes('UAE')) { realCountry = 'United Arab Emirates'; realFlag = 'https://upload.wikimedia.org/wikipedia/commons/c/cb/Flag_of_the_United_Arab_Emirates.svg'; }
     else if (DB_OWNER.includes('AZER')) { realCountry = 'Azerbaijan'; realFlag = 'https://upload.wikimedia.org/wikipedia/commons/d/dd/Flag_of_Azerbaijan.svg'; }
-    else if (DB_OWNER.includes('CHBZ')) { realCountry = 'Switzerland'; realFlag = 'https://upload.wikimedia.org/wikipedia/commons/f/f3/Flag_of_Switzerland.svg'; }
     else if (DB_OWNER.includes('KAZ')) { realCountry = 'Kazakhstan'; realFlag = 'https://upload.wikimedia.org/wikipedia/commons/d/d3/Flag_of_Kazakhstan.svg'; }
     else if (DB_OWNER.includes('SVN')) { realCountry = 'Slovenia'; realFlag = 'https://upload.wikimedia.org/wikipedia/commons/f/f0/Flag_of_Slovenia.svg'; }
     else if (DB_OWNER.includes('BRAZ')) { realCountry = 'Brazil'; realFlag = 'https://upload.wikimedia.org/wikipedia/commons/0/05/Flag_of_Brazil.svg'; }

@@ -4,10 +4,66 @@
     <h2>KEPPLER EYE</h2>
     <div class="subtitle">Global Tracking</div>
 
-    <div class="categories-list">
+    <div class="categories-header" (click)="toggleFavoritesMenu()"
+      style="margin-top: 20px; margin-bottom: 10px; color: #00ffcc; border-color: rgba(0, 255, 204, 0.4);">
+      <div style="display: flex; align-items: center;">
+        <span class="star-indicator"
+          style="display:inline-block; margin-right:8px; font-size: 1.1rem; color: #00ffcc; text-shadow: 0 0 5px #00ffcc;">★</span>
+        <span style="font-weight: bold;">FAVORITOS (OPEN DATA)</span>
+      </div>
+      <span class="dropdown-icon">{{ showFavoritesMenu ? '▼' : '▶' }}</span>
+    </div>
+
+    <div class="favorites-list" *ngIf="showFavoritesMenu">
+      <div class="favorite-group-block" *ngFor="let group of favoriteGroups">
+        <div class="favorite-group-header" (click)="toggleFavoriteGroupExpansion(group.name)">
+          <div class="group-title">
+            <span class="dropdown-icon" style="margin-right: 5px;">{{ isFavoriteGroupExpanded(group.name) ? '▼' : '▶'
+              }}</span>
+            <div style="display: flex; flex-direction: column;">
+              <span class="group-name" [style.color]="group.color">{{ group.name }}</span>
+              <span class="group-desc">{{ group.shortDesc }}</span>
+            </div>
+          </div>
+          <div class="group-toggle" (click)="toggleFavoriteGroup(group); $event.stopPropagation()"
+            title="Mostrar / Ocultar categoría entera" style="display: flex; align-items: center; gap: 5px;">
+            <span style="font-size: 0.6rem; color: #888;">TODOS</span>
+            <span class="status-indicator checkbox" [class.checked]="isFavoriteGroupSelected(group)"
+              [style.borderColor]="group.color"
+              [style.backgroundColor]="isFavoriteGroupSelected(group) ? group.color : 'transparent'"></span>
+          </div>
+        </div>
+
+        <div class="favorite-items-list" *ngIf="isFavoriteGroupExpanded(group.name)">
+          <div class="filter-item sub-item" *ngFor="let sat of group.satellites"
+            [class.active]="isFavoriteSatelliteSelected(sat.name)"
+            [style.borderColor]="isFavoriteSatelliteSelected(sat.name) ? group.color : 'rgba(0,255,204,0.1)'">
+            <div style="display: flex; align-items: center; cursor: pointer;"
+              (click)="toggleFavoriteSatellite(sat.name)" title="Mostrar / Ocultar">
+              <span class="status-indicator checkbox" [class.checked]="isFavoriteSatelliteSelected(sat.name)"
+                [style.backgroundColor]="isFavoriteSatelliteSelected(sat.name) ? group.color : 'transparent'"
+                [style.borderColor]="group.color" style="border: 1px solid; margin-right: 8px;"></span>
+            </div>
+            <div class="sub-item-text" (click)="goToFavoriteSatellite(sat.name)" title="Ir y enfocar">
+              <div class="sub-name" [style.color]="isFavoriteSatelliteSelected(sat.name) ? group.color : '#ccc'">{{
+                sat.name }}</div>
+              <div class="sub-desc" title="{{sat.description}}">{{ sat.description }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="categories-header" (click)="toggleCategoriesMenu()">
+      CATEGORÍAS GLOBALES <span class="dropdown-icon">{{ showCategoriesMenu ? '▼' : '▶' }}</span>
+    </div>
+
+    <div class="categories-list" *ngIf="showCategoriesMenu">
       <div class="filter-item" *ngFor="let cat of categories" [class.active]="isCategorySelected(cat)"
         (click)="toggleCategory(cat)">
-        <span class="status-indicator"></span>
+        <span class="status-indicator" [style.backgroundColor]="getCategoryColor(cat)"></span>
         {{ cat }}
       </div>
     </div>
@@ -51,14 +107,20 @@
         <div class="target-name">{{ trackedSatellite.sat_name }}</div>
         <div class="target-cat">CLASS: <span>{{ trackedSatellite.category || 'UNKNOWN' }}</span></div>
       </div>
-      <img *ngIf="trackedIntel" [title]="trackedIntel.country" [src]="trackedIntel.flagUrl" class="target-flag-large" alt="Flag">
+      <img *ngIf="trackedIntel" [title]="trackedIntel.country" [src]="trackedIntel.flagUrl" class="target-flag-large"
+        alt="Flag">
     </div>
 
     <div class="target-badges">
-      <div class="badge badge-status" [class.operational]="trackedSatellite.ops_status === '+'" [class.decayed]="trackedSatellite.ops_status === '-'">
-        {{ trackedSatellite.ops_status === '+' ? 'OPERATIONAL' : (trackedSatellite.ops_status === '-' ? 'DECAYED' : 'PARTIAL/UNKNOWN') }}
+      <div class="badge badge-status" [class.operational]="trackedSatellite.ops_status === '+'"
+        [class.decayed]="trackedSatellite.ops_status === '-'">
+        {{ trackedSatellite.ops_status === '+' ? 'OPERATIONAL' : (trackedSatellite.ops_status === '-' ? 'DECAYED' :
+        'PARTIAL/UNKNOWN') }}
       </div>
-      <div class="badge badge-priority" *ngIf="trackedSatellite.priority && !trackedSatellite.priority.includes('Standard')" [class.high]="trackedSatellite.priority.includes('High')" [class.experimental]="trackedSatellite.priority.includes('Experimental')">
+      <div class="badge badge-priority"
+        *ngIf="trackedSatellite.priority && !trackedSatellite.priority.includes('Standard')"
+        [class.high]="trackedSatellite.priority.includes('High')"
+        [class.experimental]="trackedSatellite.priority.includes('Experimental')">
         {{ trackedSatellite.priority | uppercase }} PRIORITY
       </div>
     </div>
@@ -67,6 +129,16 @@
       <div class="intel-image-container">
         <img [src]="trackedIntel.imageUrl" class="intel-image" alt="Classified Imagery">
         <div class="img-overlay">{{ trackedIntel.type | uppercase }}</div>
+      </div>
+
+      <div class="open-data-box" *ngIf="getTrackedFavoriteInfo() as favInfo">
+        <div class="open-data-header">
+          <h4>DATOS ABIERTOS DISPONIBLES</h4>
+        </div>
+        <div class="open-data-desc">
+          {{ favInfo.description }}
+        </div>
+        <a [href]="favInfo.url" target="_blank" class="btn-open-data">ACCEDER A LOS DATOS ↗</a>
       </div>
 
       <div class="tech-grid">
@@ -85,13 +157,15 @@
         <div class="tech-item">
           <div class="tech-label">SITE / OP</div>
           <div class="tech-value dim" [title]="trackedSatellite.launch_site || 'CLASSIFIED'">
-            {{ trackedSatellite.launch_site || 'CLASSIFIED' }} {{ trackedSatellite.owner ? '(' + trackedSatellite.owner + ')' : '' }}
+            {{ trackedSatellite.launch_site || 'CLASSIFIED' }} {{ trackedSatellite.owner ? '(' + trackedSatellite.owner
+            + ')' : '' }}
           </div>
         </div>
       </div>
-      
+
       <div class="detail-desc">{{ trackedIntel.description }}</div>
-      <div class="last-intel" *ngIf="trackedSatellite.updated_at"><b>LAST INTEL:</b> {{ trackedSatellite.updated_at | date:'short' }}</div>
+      <div class="last-intel" *ngIf="trackedSatellite.updated_at"><b>LAST INTEL:</b> {{ trackedSatellite.updated_at |
+        date:'short' }}</div>
 
       <div class="telemetry-box">
         <div class="telemetry-header">

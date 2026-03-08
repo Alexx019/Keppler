@@ -16,16 +16,13 @@
 #map-container {
   flex-grow: 1;
   height: 100%;
-  /* Filtro muy chulo para mapas satélite/openstreetmap que invierte colores haciendo el mapa oscuro y futurista */
-  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(120%);
-  will-change: transform;
 }
 
 .hud-panel {
   background-color: rgba(10, 15, 25, 0.85);
   border-right: 1px solid #00ffcc;
   box-shadow: 2px 0 15px rgba(0, 255, 204, 0.2);
-  width: 280px;
+  width: 350px;
   height: 100%;
   color: #00ffcc;
   font-family: 'Courier New', Courier, monospace;
@@ -33,7 +30,23 @@
   display: flex;
   flex-direction: column;
   z-index: 1000;
-  /* para estar visualmente separado si se usa absolute, acá es flex */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Scrollbar Customization for Palantir Theme */
+.hud-panel::-webkit-scrollbar {
+  width: 6px;
+}
+.hud-panel::-webkit-scrollbar-track {
+  background: rgba(10, 15, 25, 0.85);
+}
+.hud-panel::-webkit-scrollbar-thumb {
+  background: rgba(0, 255, 204, 0.3);
+  border-radius: 4px;
+}
+.hud-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 204, 0.7);
 }
 
 .left-panel {
@@ -77,6 +90,28 @@
   overflow-y: auto;
 }
 
+.categories-header {
+  font-size: 0.9rem;
+  color: #aaa;
+  letter-spacing: 1px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: color 0.2s;
+  padding: 5px 0;
+  border-bottom: 1px dashed rgba(0, 255, 204, 0.2);
+}
+
+.categories-header:hover {
+  color: #00ffcc;
+}
+
+.dropdown-icon {
+  font-size: 0.7rem;
+}
+
 .filter-item {
   display: flex;
   align-items: center;
@@ -114,6 +149,125 @@
 .filter-item.active .status-indicator {
   background-color: #00ffcc;
   box-shadow: 0 0 5px #00ffcc;
+}
+
+.star-indicator {
+  width: 14px;
+  height: 14px;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  font-size: 1.2rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #555;
+  margin-right: 9px; /* Compensate for larger width than 8px standard dot */
+}
+
+/* Grupo Favoritos Layout */
+.favorites-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+.favorite-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: background 0.2s;
+}
+.favorite-group-header:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.group-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.group-name {
+  font-size: 0.85rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+.group-desc {
+  font-size: 0.65rem;
+  color: #777;
+  letter-spacing: 0.5px;
+}
+.group-toggle {
+  padding: 5px;
+}
+.checkbox {
+  border-radius: 2px; /* Square instead of circle */
+  background-color: transparent;
+}
+.checkbox.checked {
+  box-shadow: 0 0 5px currentColor;
+}
+
+/* Sub-items list */
+.favorite-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding-left: 10px;
+}
+.sub-item {
+  padding: 6px 10px;
+  background: rgba(0,0,0,0.2);
+  border-width: 0 0 0 2px; /* Left thin border for colored highlight */
+  border-style: solid;
+  justify-content: space-between;
+}
+.sub-item:hover {
+  background: rgba(255,255,255,0.05);
+}
+.sub-item.active {
+  background: rgba(255,255,255,0.08); /* slightly brigher */
+  box-shadow: none; /* remove large glow from regular categories */
+}
+.sub-item-text {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  flex-grow: 1;
+}
+.sub-item-text:hover .sub-name {
+  text-decoration: underline;
+}
+.target-btn {
+  background: transparent;
+  border: 1px solid;
+  border-radius: 4px;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.8rem;
+  padding: 4px 6px;
+  margin-left: 8px;
+  transition: all 0.2s;
+}
+.target-btn:hover {
+  background: rgba(255,255,255,0.1);
+}
+.sub-name {
+  font-size: 0.75rem;
+  font-weight: bold;
+}
+.sub-desc {
+  font-size: 0.6rem;
+  color: #777;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px; /* Constrain width to ensure it truncates, wider now */
+  margin-top: 2px;
 }
 
 /* Target Panel Styles */
@@ -446,4 +600,69 @@
   border: 2px solid #ff3333;
   background: transparent;
   box-shadow: inset 0 0 10px rgba(255, 51, 51, 0.4), 0 0 10px rgba(255, 51, 51, 0.4);
+}
+
+/* Bloque Datos Abiertos */
+.open-data-box {
+  background: rgba(0, 255, 204, 0.05);
+  border: 1px solid #00ffcc;
+  padding: 12px;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 0 10px rgba(0, 255, 204, 0.1);
+}
+.open-data-header {
+  border-bottom: 1px solid rgba(0, 255, 204, 0.5);
+  margin-bottom: 8px;
+  padding-bottom: 5px;
+}
+.open-data-header h4 {
+  margin: 0;
+  color: #00ffcc;
+  font-size: 0.85rem;
+  letter-spacing: 1px;
+}
+.open-data-desc {
+  font-size: 0.8rem;
+  color: #fff;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+.btn-open-data {
+  display: block;
+  text-align: center;
+  background: rgba(0, 255, 204, 0.1);
+  color: #00ffcc;
+  text-decoration: none;
+  border: 1px solid #00ffcc;
+  padding: 8px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+.btn-open-data:hover {
+  background: #00ffcc;
+  color: #000;
+  box-shadow: 0 0 10px #00ffcc;
+}
+
+/* Favoritos Left Panel */
+.favorite-item {
+  color: #00ffcc;
+  font-weight: bold;
+}
+.favorite-item.active {
+  background: rgba(0, 255, 204, 0.2);
+  border-color: #00ffcc;
+  box-shadow: 0 0 15px rgba(0, 255, 204, 0.3);
+}
+
+/* Estrella para satélites favoritos */
+.favorite-star-icon {
+  font-size: 20px; 
+  background: transparent;
+  border: none;
+  margin: 0;
+  padding: 0;
 }

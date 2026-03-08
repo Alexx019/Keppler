@@ -2,6 +2,7 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import * as L from 'leaflet';
 import { SatellitesService, SatelliteRaw } from '../../services/satellites';
+import { FAVORITE_SATELLITES, FAVORITE_GROUPS, FavoriteGroup, FavoriteSatelliteInfo } from '../../services/favorite-satellites';
 
 @Component({
   selector: 'app-map',
@@ -16,15 +17,23 @@ export class MapComponent implements OnInit, OnDestroy {
   // Guardamos los datos crudos para recalcular
   private satellitesData: SatelliteRaw[] = [];
 
-  // DICCIONARIO: Clave = Nombre Satélite, Valor = Marcador en el mapa
-  private markers: Map<string, L.CircleMarker> = new Map();
+  private markers: Map<string, L.Marker | L.CircleMarker> = new Map();
 
   // Referencia al bucle de animación
   private animationFrameId: number | null = null;
 
   // Estado UI Filtros
   categories: string[] = [];
-  selectedCategories: Set<string> = new Set();
+  selectedCategories: Set<string> = new Set(['Earth Resources']);
+  showCategoriesMenu: boolean = true;
+  
+  // Estado UI Favoritos
+  favoriteGroups = FAVORITE_GROUPS;
+  showFavoritesMenu: boolean = true;
+  expandedFavoriteGroups: Set<string> = new Set(); 
+  selectedFavoriteSatellites: Set<string> = new Set(
+    FAVORITE_GROUPS.filter(g => g.name !== 'Ciencia Espacial').flatMap(g => g.satellites.map(s => s.name))
+  );
 
   // Estado UI Tracking
   trackedSatellite: SatelliteRaw | null = null;
@@ -96,8 +105,8 @@ export class MapComponent implements OnInit, OnDestroy {
 
     L.control.zoom({ position: 'bottomright' }).addTo(this.map);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap contributors, © CARTO',
       noWrap: false // Permite repetir horizontalmente y worldCopyJump hace la magia
     }).addTo(this.map);
   }
@@ -115,14 +124,8 @@ export class MapComponent implements OnInit, OnDestroy {
       if (uniqueCats.size === 0) uniqueCats.add('Desconocida');
 
       this.categories = Array.from(uniqueCats).sort();
-      // Por defecto activas SOLO Military, Earth Resources y Navigation
-      const defaultCats = ['Military', 'Earth Resources', 'Navigation'];
-
-      this.categories.forEach(c => {
-        if (defaultCats.includes(c)) {
-          this.selectedCategories.add(c);
-        }
-      });
+      // Ya no seleccionamos categorías por defecto, salvo Earth Resources y los Favoritos
+      this.selectedCategories = new Set(['Earth Resources']);
 
       // Creamos los marcadores iniciales
       this.createMarkers();
@@ -146,15 +149,7 @@ export class MapComponent implements OnInit, OnDestroy {
       if (pos) {
         // Color Palantir
         const cat = sat.category || 'Desconocida';
-        let color = '#00ffcc'; // Default cyan
-        if (cat === 'Starlink') color = '#ff00ff';
-        else if (cat === 'Stations') color = '#ff3333';
-        else if (cat === 'Weather') color = '#33ccff';
-        else if (cat === 'Navigation' || cat === 'GLONASS') color = '#ffff00';
-        else if (cat === 'Military' || cat === 'TJSAT') color = '#ff0000';
-        else if (cat === 'Science') color = '#00ff00';
-        else if (cat === 'Analyst') color = '#ff00aa'; // Magenta brillante para los oscuros
-        else if (cat === 'Radar') color = '#ff8800';  // Naranja radar
+        const color = this.getSatelliteColor(sat);
 
         // Estilo Palantir Ficha Táctica
         const norad = sat.norad_cat_id || 'N/A';
@@ -178,12 +173,29 @@ export class MapComponent implements OnInit, OnDestroy {
           </div>
         `;
 
-        const marker = L.circleMarker([pos.lat, pos.lng], {
-          radius: 3,
-          fillColor: color,
-          color: "transparent",
-          fillOpacity: 0.8
-        }).bindTooltip(popupHTML, { className: 'tactical-popup', direction: 'top', opacity: 1 });
+        const isFav = FAVORITE_SATELLITES[sat.sat_name] !== undefined;
+        let marker: L.Marker | L.CircleMarker;
+
+        if (isFav) {
+          // Render as a star for favorites
+          marker = L.marker([pos.lat, pos.lng], {
+            icon: L.divIcon({
+              className: 'favorite-star-icon',
+              html: `<div style="color: ${color}; text-shadow: 0 0 5px ${color}; width: 100%; height: 100%; text-align: center; line-height: 20px;">★</div>`,
+              iconSize: [20, 20],
+              iconAnchor: [10, 10]
+            })
+          }).bindTooltip(popupHTML, { className: 'tactical-popup', direction: 'top', opacity: 1 });
+        } else {
+          // Render as a standard dot
+          marker = L.circleMarker([pos.lat, pos.lng], {
+            radius: 3,
+            fillColor: color,
+            color: color,
+            weight: 1,
+            fillOpacity: 1
+          }).bindTooltip(popupHTML, { className: 'tactical-popup', direction: 'top', opacity: 1 });
+        }
 
 
 
@@ -193,8 +205,9 @@ export class MapComponent implements OnInit, OnDestroy {
           this.trackSatellite(sat);
         });
 
-        // Solo lo añadimos si la categoría está seleccionada 
-        if (this.selectedCategories.has(cat)) {
+        // Solo lo añadimos si la categoría está seleccionada o es favorito seleccionado
+        const isFavSelected = this.selectedFavoriteSatellites.has(sat.sat_name);
+        if (this.selectedCategories.has(cat) || isFavSelected) {
           marker.addTo(this.map);
         }
 
@@ -208,8 +221,10 @@ export class MapComponent implements OnInit, OnDestroy {
 
     this.satellitesData.forEach(sat => {
       const cat = sat.category || 'Desconocida';
-      // Optimización: Si no está activa, ni calculamos ni movemos
-      if (!this.selectedCategories.has(cat)) return;
+      const isFavSelected = this.selectedFavoriteSatellites.has(sat.sat_name);
+      
+      // Optimización: Si no está activa ni es favorito seleccionado, ni calculamos ni movemos
+      if (!this.selectedCategories.has(cat) && !isFavSelected) return;
 
       const newPos = this.satelliteService.calculatePosition(sat, now);
 
@@ -287,6 +302,12 @@ export class MapComponent implements OnInit, OnDestroy {
         if (this.map.hasLayer(m)) this.map.removeLayer(m);
       }
     });
+
+    // Asegurar que el marker del objetivo esté visible (evita bugs visuales por saltos directos iterativos)
+    const targetMarker = this.markers.get(sat.sat_name);
+    if (targetMarker && !this.map.hasLayer(targetMarker)) {
+      targetMarker.addTo(this.map);
+    }
 
     const now = new Date();
     const pos = this.satelliteService.calculatePosition(sat, now);
@@ -448,7 +469,8 @@ export class MapComponent implements OnInit, OnDestroy {
     // Restaurar todos los satélites visibles según el filtro
     this.satellitesData.forEach(s => {
       const cat = s.category || 'Desconocida';
-      if (this.selectedCategories.has(cat)) {
+      const isFavSelected = this.selectedFavoriteSatellites.has(s.sat_name);
+      if (this.selectedCategories.has(cat) || isFavSelected) {
         const m = this.markers.get(s.sat_name);
         if (m && !this.map.hasLayer(m)) m.addTo(this.map);
       }
@@ -527,10 +549,12 @@ export class MapComponent implements OnInit, OnDestroy {
   toggleCategory(category: string): void {
     if (this.selectedCategories.has(category)) {
       this.selectedCategories.delete(category);
-      // Quitar del mapa instantáneamente
+      // Quitar del mapa instantáneamente los que no sean favoritos seleccionados
       this.satellitesData
         .filter((s: SatelliteRaw) => (s.category || 'Desconocida') === category)
         .forEach((s: SatelliteRaw) => {
+          if (this.selectedFavoriteSatellites.has(s.sat_name)) return; // Si es favorito y está seleccionado, se mantiene
+          
           const marker = this.markers.get(s.sat_name);
           if (marker) {
             this.map.removeLayer(marker);
@@ -557,5 +581,131 @@ export class MapComponent implements OnInit, OnDestroy {
 
   isCategorySelected(category: string): boolean {
     return this.selectedCategories.has(category);
+  }
+
+  // Lógica Favoritos Desplegables
+
+  toggleFavoritesMenu(): void {
+    this.showFavoritesMenu = !this.showFavoritesMenu;
+  }
+
+  toggleFavoriteGroupExpansion(groupName: string): void {
+    if (this.expandedFavoriteGroups.has(groupName)) {
+      this.expandedFavoriteGroups.delete(groupName);
+    } else {
+      this.expandedFavoriteGroups.add(groupName);
+    }
+  }
+
+  isFavoriteGroupExpanded(groupName: string): boolean {
+    return this.expandedFavoriteGroups.has(groupName);
+  }
+
+  isFavoriteSatelliteSelected(satName: string): boolean {
+    return this.selectedFavoriteSatellites.has(satName);
+  }
+
+  isFavoriteGroupSelected(group: FavoriteGroup): boolean {
+    return group.satellites.every(s => this.selectedFavoriteSatellites.has(s.name));
+  }
+
+  toggleFavoriteSatellite(satName: string): void {
+    const isSelected = this.selectedFavoriteSatellites.has(satName);
+    const now = new Date();
+
+    if (isSelected) {
+      this.selectedFavoriteSatellites.delete(satName);
+      
+      // Borrar del mapa si no pertenece además a una categoría estándar activa
+      const satData = this.satellitesData.find(s => s.sat_name === satName);
+      if (satData && !this.selectedCategories.has(satData.category || 'Desconocida')) {
+        const marker = this.markers.get(satName);
+        if (marker) this.map.removeLayer(marker);
+      }
+    } else {
+      this.selectedFavoriteSatellites.add(satName);
+      
+      // Renderizar en el mapa
+      const satData = this.satellitesData.find(s => s.sat_name === satName);
+      if (satData) {
+        const marker = this.markers.get(satName);
+        const pos = this.satelliteService.calculatePosition(satData, now);
+        if (marker && pos) {
+          marker.setLatLng([pos.lat, pos.lng]);
+          if (!this.trackedSatellite || this.trackedSatellite.sat_name === satName) {
+            marker.addTo(this.map);
+          }
+        }
+      }
+    }
+  }
+
+  toggleFavoriteGroup(group: FavoriteGroup): void {
+    const isAllSelected = this.isFavoriteGroupSelected(group);
+    
+    // Si todos están seleccionados, los deseleccionamos todos. Si no, los seleccionamos todos.
+    group.satellites.forEach(s => {
+      if (isAllSelected && this.selectedFavoriteSatellites.has(s.name)) {
+        this.toggleFavoriteSatellite(s.name); // Deseleccionar individualmente para reusar lógica de borrar marker
+      } else if (!isAllSelected && !this.selectedFavoriteSatellites.has(s.name)) {
+        this.toggleFavoriteSatellite(s.name); // Seleccionar individualmente para reusar lógica de añadir marker
+      }
+    });
+  }
+
+  goToFavoriteSatellite(satName: string): void {
+    // 1. Mostrar si no está visible
+    if (!this.selectedFavoriteSatellites.has(satName)) {
+      this.toggleFavoriteSatellite(satName);
+    }
+
+    // 2. Trackear y Enfocar
+    const satData = this.satellitesData.find(s => s.sat_name === satName);
+    if (satData) {
+      if (this.trackedSatellite && this.trackedSatellite.sat_name === satName) {
+        // Ya trackeado, resincronizar pan de Leaflet para garantizar centrado
+        const now = new Date();
+        const pos = this.satelliteService.calculatePosition(satData, now);
+        if (pos) {
+          // Pan con offset del HUD
+          const offsetX = 0.05 * (this.map.getZoom() < 5 ? 20 : 1);
+          this.map.panTo([pos.lat, pos.lng - offsetX], { animate: true, duration: 0.5 });
+        }
+      } else {
+        // Iniciar tracker desde 0
+        this.trackSatellite(satData);
+      }
+    }
+  }
+
+  getTrackedFavoriteInfo(): FavoriteSatelliteInfo | null {
+    if (!this.trackedSatellite) return null;
+    return FAVORITE_SATELLITES[this.trackedSatellite.sat_name] || null;
+  }
+
+  toggleCategoriesMenu(): void {
+    this.showCategoriesMenu = !this.showCategoriesMenu;
+  }
+
+  getSatelliteColor(sat: SatelliteRaw): string {
+    const favInfo = FAVORITE_SATELLITES[sat.sat_name];
+    if (favInfo && favInfo.color) {
+      return favInfo.color;
+    }
+    return this.getCategoryColor(sat.category || 'Desconocida');
+  }
+
+  getCategoryColor(cat: string): string {
+    let color = '#00ffcc'; // Default cyan
+    if (cat === 'Starlink') color = '#ff00ff';
+    else if (cat === 'Stations') color = '#ff5555'; // Lighter red
+    else if (cat === 'Weather') color = '#33ccff';
+    else if (cat === 'Navigation' || cat === 'GLONASS') color = '#ffcc00'; // Amber/Gold instead of pure yellow
+    else if (cat === 'Military' || cat === 'TJSAT') color = '#cc0000'; // Darker red to distinguish from stations
+    else if (cat === 'Earth Resources') color = '#aaff00'; // Yellow-green
+    else if (cat === 'Science') color = '#00ff55'; // Pure green
+    else if (cat === 'Analyst') color = '#ff00aa'; // Magenta brillante para los oscuros
+    else if (cat === 'Radar') color = '#ff8800';  // Naranja radar
+    return color;
   }
 }
