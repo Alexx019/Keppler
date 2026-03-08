@@ -1,59 +1,26 @@
-# KepplerFrontend
+# Keppler Frontend
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.7.
+Este es el frontend de **Keppler**, desarrollado con **Angular 20**. Se encarga de mostrar un globo terráqueo/mapa interactivo utilizando **Leaflet** y calcular posiciones orbitales en tiempo real desde los TLEs con la librería **satellite.js**.
 
-## Development server
+## 💻 Desarrollo Local
 
-To start a local development server, run:
+Este proyecto utiliza Angular CLI. Para empezar a desarrollar:
 
-```bash
-ng serve
-```
+1. Instala las dependencias:
+   ```bash
+   npm install
+   ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+2. Ejecuta el servidor de desarrollo:
+   ```bash
+   npm start
+   ```
+   *El servidor quedará expuesto y recargará de forma automática en caso de cambiar algún archivo fuente.*
 
-## Code scaffolding
+## 📦 Construcción (Build)
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+Para compilar el proyecto a producción, ejecuta `npm run build`. Los artefactos compilados se almacenarán en el directorio `dist/`.
 
-```bash
-ng generate component component-name
-```
+## 🐳 Docker
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Para su entorno productivo o generalizado, es consumido desde el `docker-compose.yml` en la raíz. Este contenedor se construye utilizando el `Dockerfile` interno y se sirve todo el bundle estático típicamente a través de **Nginx** (usando la configuración de `nginx.conf`).
