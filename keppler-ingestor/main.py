@@ -122,7 +122,6 @@ def fetch_and_save_tles():
         "Science": "https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle",
         "Military": "https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle",
         "Earth Resources": "https://celestrak.org/NORAD/elements/gp.php?GROUP=resource&FORMAT=tle",
-        "Analyst": "https://celestrak.org/NORAD/elements/gp.php?GROUP=analyst&FORMAT=tle",
         "Radar": "https://celestrak.org/NORAD/elements/gp.php?GROUP=radar&FORMAT=tle",
         "GLONASS": "https://celestrak.org/NORAD/elements/gp.php?GROUP=glo-nnss&FORMAT=tle",
         "TJSAT": "https://celestrak.org/NORAD/elements/gp.php?GROUP=tjsat&FORMAT=tle"
