@@ -13,7 +13,7 @@ El proyecto se compone de cuatro piezas fundamentales, orquestadas y comunicadas
    Servicio backend ligero desarrollado en **Node.js** utilizando el framework **Express**. Expone la información satelital enriquecida almacenada en la base de datos hacia el frontend.
 
 3. **Ingestor (`keppler-ingestor`)**: 
-   Microservicio escrito en **Python** responsable de descargar de forma autónoma los últimos datos TLE activos (provenientes de [CelesTrak](https://celestrak.org/)) y volcarlos estructuradamente en la base de datos relacional.
+   Microservicio escrito en **Python** responsable de descargar de forma autónoma los últimos datos TLE activos (provenientes de [CelesTrak](https://celestrak.org/)) y volcarlos estructuradamente en la base de datos relacional. Además se encarga de buscar información e imágenes relevantes sobre cada satélite para ofrecer información detallada y visual. 
 
 4. **Base de Datos (`keppler-db`)**: 
    Motor principal de almacenamiento utilizando **PostgreSQL 15**. Guarda el inventario de satélites y persiste la data histórica/reciente que provee el Ingestor.
