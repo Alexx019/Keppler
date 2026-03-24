@@ -1,9 +1,10 @@
 import { Component, signal } from '@angular/core';
 import { MapComponent } from './components/map/map';
+import { Hud } from "./components/hud/hud";
 
 @Component({
   selector: 'app-root',
-  imports: [MapComponent],
+  imports: [MapComponent, Hud],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

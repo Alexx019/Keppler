@@ -5,9 +5,9 @@ services:
     container_name: keppler-db
     restart: always
     environment:
-      POSTGRES_USER: keppler_admin
-      POSTGRES_PASSWORD: keppler_password # Cambia esto en producción
-      POSTGRES_DB: keppler_repository
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - keppler_db_data:/var/lib/postgresql/data
     networks:
@@ -22,8 +22,8 @@ services:
     depends_on:
       - keppler-db
     environment:
-      - DATABASE_URL=postgresql://keppler_admin:keppler_password@keppler-db:5432/keppler_repository
-      - TLE_URL=https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle
+      - DATABASE_URL=${DATABASE_URL}
+      - TLE_URL=${TLE_URL}
     restart: unless-stopped
     networks:
       - keppler-network
@@ -35,9 +35,9 @@ services:
     depends_on:
       - keppler-db
     environment:
-      - DATABASE_URL=postgresql://keppler_admin:keppler_password@keppler-db:5432/keppler_repository
+      - DATABASE_URL=${DATABASE_URL}
     ports:
-      - "9010:9010"
+      - "${API_PORT}:9010"
     networks:
       - keppler-network
     restart: unless-stopped
@@ -47,11 +47,11 @@ services:
     build: ./keppler-frontend
     container_name: keppler-frontend
     ports:
-      - "9011:9011"
+      - "${FRONTEND_PORT}:9011"
     depends_on:
       - keppler-api
     environment:
-      - API_URL=value
+      - API_URL=${API_URL}
     networks:
       - keppler-network
     restart: unless-stopped

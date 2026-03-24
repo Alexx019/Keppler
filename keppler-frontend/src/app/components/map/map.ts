@@ -89,6 +89,7 @@ export class MapComponent implements OnInit, OnDestroy {
   }
 
   private initMap(): void {
+<<<<<<< Updated upstream
     // Zoom control abajoderecha para que no pise el HUD
     const maxBounds: L.LatLngBoundsExpression = [
       [-90, -180],
@@ -108,6 +109,11 @@ export class MapComponent implements OnInit, OnDestroy {
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
       attribution: '© OpenStreetMap contributors, © CARTO',
       noWrap: false // Permite repetir horizontalmente y worldCopyJump hace la magia
+=======
+    this.map = L.map('map-container', { preferCanvas: true, zoomControl: false }).setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors'
+>>>>>>> Stashed changes
     }).addTo(this.map);
   }
 

@@ -1,0 +1,39 @@
+<div id="page">
+    <div id="logo">
+        <h1>keppler</h1>
+    </div>
+    <div id="shearch">
+        <input type="text" placeholder="Buscar satélite">
+    </div>
+    <div id="filters">
+        <h2>Filtros</h2>
+        <div>
+            <h3>altura</h3>
+            <input type="range" id="altura" name="altura" min="0" max="50000" value="50000" step="5" oninput="this.nextElementSibling.value = this.value">
+            <output>50000</output><span>km</span>
+        </div>
+        <div>
+            <h3>Paises</h3>
+            <div class="country">
+                <input type="checkbox">
+                <p>EEUU</p>
+            </div>
+            <div class="country">
+                <input type="checkbox">
+                <p>Rusia</p>
+            </div>
+            <div class="country">
+                <input type="checkbox">
+                <p>UE</p>
+            </div>
+            <div class="country">
+                <input type="checkbox">
+                <p>China</p>
+            </div>
+            <div class="country">
+                <input type="checkbox">
+                <p>Otros</p>
+            </div>
+        </div>
+    </div>
+</div>
