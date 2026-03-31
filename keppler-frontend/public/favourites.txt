@@ -1,0 +1,118 @@
+================================================================================
+SATELLITES CON DATOS ABIERTOS (FAVORITOS) - ENLACES PÚBLICOS 2026
+================================================================================
+
+--- OBSERVACIÓN TERRESTRE (IMÁGENES Y RADAR) ---
+
+SENTINEL-1A, SENTINEL-1B
+Enlace: https://browser.dataspace.copernicus.eu/
+Datos: Radar de apertura sintética (SAR), atraviesa nubes.
+
+SENTINEL-2A, SENTINEL-2B, SENTINEL-2C
+Enlace: https://browser.dataspace.copernicus.eu/
+Datos: Imágenes ópticas de 10m de resolución (Color Real, Vegetación).
+
+SENTINEL-3A, SENTINEL-3B
+Enlace: https://browser.dataspace.copernicus.eu/
+Datos: Temperatura del mar, color oceánico y altimetría.
+
+LANDSAT 8, LANDSAT 9
+Enlace: https://worldview.earthdata.nasa.gov/
+Datos: Imágenes ópticas e infrarrojas de 30m.
+
+CBERS 4
+Enlace: http://www.dgi.inpe.br/catalogo/
+Datos: Imágenes ópticas (Cooperación China-Brasil).
+
+ALOS-2, ALOS-4 (DAICHI-4)
+Enlace: https://www.eorc.jaxa.jp/ALOS/en/index_e.htm
+Datos: Radar de banda L (Japón).
+
+RESOURCESAT-2, RESOURCESAT-2A, CARTOSAT-1, CARTOSAT-2, CARTOSAT-3
+Enlace: https://bhuvan-app1.nrsc.gov.in/
+Datos: Imágenes y cartografía de la India.
+
+
+--- METEOROLOGÍA Y TIEMPO REAL (DISCO GLOBAL) ---
+
+GOES 14, GOES 16, GOES 17, GOES 18, GOES 19
+Enlace: https://www.star.nesdis.noaa.gov/GOES/index.php
+Datos: Nubes y clima cada 10-15 min (América).
+
+METEOSAT-9, METEOSAT-10, METEOSAT-11, METEOSAT-12
+Enlace: https://view.eumetsat.int/
+Datos: Clima en tiempo real (Europa y África).
+
+HIMAWARI-8, HIMAWARI-9
+Enlace: https://www.jma.go.jp/bosai/map.html
+Datos: Meteorología en tiempo real (Asia y Pacífico).
+
+FENGYUN 3A/B/C/D/E/F/G, FENGYUN 4A
+Enlace: https://satellite.nsmc.org.cn/DataPortal/en/home/index.html
+Datos: Meteorología china.
+
+GEO-KOMPSAT-2A
+Enlace: https://nmsc.kma.go.kr/enhome/html/main/main.do
+Datos: Satélite meteorológico coreano.
+
+ELEKTRO-L 2
+Enlace: http://planet.iitp.ru/
+Datos: Satélite geoestacionario ruso.
+
+INSAT-3D, INSAT-3DR, INSAT-3DS
+Enlace: https://www.mosdac.gov.in/
+Datos: Meteorología del Océano Índico.
+
+
+--- DATOS ANALÍTICOS Y MEDIO AMBIENTE ---
+
+NOAA 20 (JPSS-1), NOAA 21 (JPSS-2), SUOMI NPP
+Enlace: https://firms.modaps.eosdis.nasa.gov/map/
+Datos: Incendios activos y anomalías térmicas (VIIRS).
+
+AQUA, TERRA, AURA
+Enlace: https://worldview.earthdata.nasa.gov/
+Datos: Clorofila, polvo, aerosoles y ciclos del agua (MODIS).
+
+SENTINEL-5P
+Enlace: https://maps.s5p-pal.com/
+Datos: Calidad del aire, NO2, Metano y contaminantes.
+
+ICESAT-2
+Enlace: https://icesat-2.gsfc.nasa.gov/icesat-2-data
+Datos: Altura del hielo y de bosques (Lidar).
+
+SMAP, SMOS
+Enlace: https://smap.jpl.nasa.gov/
+Datos: Humedad del suelo y salinidad del mar.
+
+GPM-CORE
+Enlace: https://gpm.nasa.gov/data/visualization
+Datos: Mapas de lluvia y nieve global.
+
+SENTINEL-6A, SENTINEL-6B
+Enlace: https://www.earthdata.nasa.gov/centers/po-daac
+Datos: Nivel del mar y dinámica oceánica.
+
+
+--- CIENCIA Y OBSERVACIÓN SOLAR ---
+
+SDO (Solar Dynamics Observatory)
+Enlace: https://sdo.gsfc.nasa.gov/data/
+Datos: El Sol en alta resolución y tiempo real.
+
+HST (Hubble Space Telescope)
+Enlace: https://hla.stsci.edu/
+Datos: Imágenes históricas del espacio profundo.
+
+CXO (Chandra), XMM-NEWTON
+Enlace: https://cxc.harvard.edu/cda/
+Datos: Observaciones de rayos X.
+
+FERMI (GLAST), SWIFT
+Enlace: https://fermi.gsfc.nasa.gov/ssc/data/
+Datos: Eventos de alta energía y rayos gamma.
+
+IRIS, HINODE
+Enlace: https://iris.lmsal.com/
+Datos: Observación de la corona solar.
